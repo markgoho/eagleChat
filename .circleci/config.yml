@@ -1,0 +1,96 @@
+version: 2
+
+setup: &setup
+  working_directory: ~/chat
+  docker:
+    - image: circleci/node:8-browsers
+jobs:
+  checkout-and-install:
+    <<: *setup
+    steps:
+      - checkout
+      - restore_cache:
+          keys:
+            - chat-{{ .Branch }}-{{ checksum "package.json" }}-v1
+            - chat-{{ .Branch }}-v1
+            - chat-v1
+      - run: yarn install --production=false
+      - save_cache:
+          key: chat-{{ .Branch }}-{{ checksum "package.json" }}-v1
+          paths:
+            - "node_modules"
+  test:
+    <<: *setup
+    steps:
+      - checkout
+      - restore_cache:
+          key: chat-{{ .Branch }}-{{ checksum "package.json" }}-v1
+      - run:
+          name: Install Chrome
+          command: |
+            wget -q -O - https://dl.google.com/linux/linux_signing_key.pub | sudo apt-key add -
+            sudo sh -c 'echo "deb [arch=amd64] http://dl.google.com/linux/chrome/deb/ stable main" >> /etc/apt/sources.list.d/google.list'
+            sudo apt-get update
+            sudo apt-get -y install google-chrome-stable
+      - run: export IS_CIRCLE=true
+      - run:
+          name: Run tests
+          command: yarn e2e
+  build:
+    <<: *setup
+    steps:
+      - checkout
+      - restore_cache:
+          key: chat-{{ .Branch }}-{{ checksum "package.json" }}-v1
+      - run:
+          name: Production Build
+          command: yarn build:prod --progress=false
+  # deployToStaging:
+  #   <<: *setup
+  #   steps:
+  #     - checkout
+  #     - restore_cache:
+  #         key: chat-{{ .Branch }}-{{ checksum "package.json" }}-v1
+  #     - run:
+  #         name: Deploy
+  #         command: npm run deploy:staging
+  deployToProduction:
+    <<: *setup
+    steps:
+      - checkout
+      - restore_cache:
+          key: chat-{{ .Branch }}-{{ checksum "package.json" }}-v1
+      - run:
+          name: Deploy
+          command: npm run deploy:production
+workflows:
+  version: 2
+  test-and-build:
+    jobs:
+      - checkout-and-install
+      # - test:
+      #     requires:
+      #       - checkout-and-install
+      - build:
+          requires:
+            - checkout-and-install
+      # - deployToStaging:
+      #     requires:
+      #       - build
+      #     filters:
+      #       branches:
+      #         only:
+      #           - development
+      #       tags:
+      #         ignore:
+      #           - /.*/
+      - deployToProduction:
+          requires:
+            - build
+          filters:
+            branches:
+              only:
+                - master
+            tags:
+              ignore:
+                - /.*/
