@@ -35,7 +35,7 @@ jobs:
       - run: export IS_CIRCLE=true
       - run:
           name: Run tests
-          command: yarn e2e
+          command: npm run e2e
   build:
     <<: *setup
     steps:
@@ -44,7 +44,7 @@ jobs:
           key: chat-{{ .Branch }}-{{ checksum "package.json" }}-v2
       - run:
           name: Production Build
-          command: yarn build:prod --progress=false
+          command: npm run build:prod --progress=false
   # deployToStaging:
   #   <<: *setup
   #   steps:
