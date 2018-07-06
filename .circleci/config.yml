@@ -11,12 +11,12 @@ jobs:
       - checkout
       - restore_cache:
           keys:
-            - chat-{{ .Branch }}-{{ checksum "package.json" }}-v1
-            - chat-{{ .Branch }}-v1
-            - chat-v1
+            - chat-{{ .Branch }}-{{ checksum "package.json" }}-v2
+            - chat-{{ .Branch }}-v2
+            - chat-v2
       - run: npm i
       - save_cache:
-          key: chat-{{ .Branch }}-{{ checksum "package.json" }}-v1
+          key: chat-{{ .Branch }}-{{ checksum "package.json" }}-v2
           paths:
             - "node_modules"
   test:
@@ -24,7 +24,7 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          key: chat-{{ .Branch }}-{{ checksum "package.json" }}-v1
+          key: chat-{{ .Branch }}-{{ checksum "package.json" }}-v2
       - run:
           name: Install Chrome
           command: |
@@ -41,7 +41,7 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          key: chat-{{ .Branch }}-{{ checksum "package.json" }}-v1
+          key: chat-{{ .Branch }}-{{ checksum "package.json" }}-v2
       - run:
           name: Production Build
           command: yarn build:prod --progress=false
@@ -50,7 +50,7 @@ jobs:
   #   steps:
   #     - checkout
   #     - restore_cache:
-  #         key: chat-{{ .Branch }}-{{ checksum "package.json" }}-v1
+  #         key: chat-{{ .Branch }}-{{ checksum "package.json" }}-v2
   #     - run:
   #         name: Deploy
   #         command: npm run deploy:staging
@@ -59,7 +59,7 @@ jobs:
     steps:
       - checkout
       - restore_cache:
-          key: chat-{{ .Branch }}-{{ checksum "package.json" }}-v1
+          key: chat-{{ .Branch }}-{{ checksum "package.json" }}-v2
       - run:
           name: Deploy
           command: npm run deploy:production
