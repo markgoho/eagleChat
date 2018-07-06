@@ -9,6 +9,7 @@ import { AngularFireModule } from 'angularfire2';
 import { AngularFireAuthModule } from 'angularfire2/auth';
 import { AngularFireDatabaseModule } from 'angularfire2/database';
 import { AngularFirestoreModule } from 'angularfire2/firestore';
+import { AngularFireStorageModule } from 'angularfire2/storage';
 import { environment } from '../environments/environment';
 import { AppRoutingModule } from './app-routing.module';
 import { AppComponent } from './app.component';
@@ -26,6 +27,7 @@ import { StylizePipe } from './stylize.pipe';
     AngularFireDatabaseModule,
     AngularFireAuthModule,
     AngularFirestoreModule.enablePersistence(),
+    AngularFireStorageModule,
     AppRoutingModule,
     ServiceWorkerModule.register('/ngsw-worker.js', {
       enabled: environment.production,

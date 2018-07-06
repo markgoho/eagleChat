@@ -1,9 +1,11 @@
 import { Component } from '@angular/core';
 import { MatSnackBar } from '@angular/material';
 import { AngularFireAuth } from 'angularfire2/auth';
-import { AngularFireDatabase } from 'angularfire2/database';
+import { AngularFireDatabase, AngularFireList } from 'angularfire2/database';
+import { AngularFireStorage } from 'angularfire2/storage';
 import * as firebase from 'firebase';
 import { Observable } from 'rxjs';
+import { filter } from 'rxjs/operators';
 
 const LOADING_IMAGE_URL = 'https://www.google.com/images/spin-32.gif';
 const PROFILE_PLACEHOLDER_IMAGE_URL = '/assets/images/profile_placeholder.png';
@@ -24,10 +26,12 @@ export class AppComponent {
   constructor(
     public db: AngularFireDatabase,
     public afAuth: AngularFireAuth,
+    public afStorage: AngularFireStorage,
     public snackBar: MatSnackBar
   ) {
     this.user = afAuth.authState;
     this.user.subscribe((user: firebase.User) => {
+      // tslint:disable-next-line:no-console
       console.log(user);
       this.currentUser = user;
 
@@ -118,39 +122,30 @@ export class AppComponent {
   }
 
   // TODO: Refactor into text message form component
-  saveMessage(event: any, el: HTMLInputElement) {
+  async saveMessage(event: any, el: HTMLInputElement) {
     event.preventDefault();
 
     if (this.value && this.checkSignedInWithMessage()) {
       // Add a new message entry to the Firebase Database.
       const messages = this.db.list('/messages');
-      messages
-        .push({
+      try {
+        await messages.push({
           name: this.currentUser.displayName,
           text: this.value,
           photoUrl: this.currentUser.photoURL || PROFILE_PLACEHOLDER_IMAGE_URL,
-        })
-        .then(
-          () => {
-            // Clear message text field and SEND button state.
-            el.value = '';
-          },
-          err => {
-            this.snackBar.open(
-              'Error writing new message to Firebase Database.',
-              null,
-              {
-                duration: 5000,
-              }
-            );
-            console.error(err);
-          }
-        );
+        });
+
+        // Clear message text field and SEND button state.
+        el.value = '';
+      } catch (err) {
+        // tslint:disable-next-line:no-console
+        console.error(err);
+      }
     }
   }
 
   // TODO: Refactor into image message form component
-  saveImageMessage(event: any) {
+  async saveImageMessage(event: any) {
     event.preventDefault();
     const file = event.target.files[0];
 
@@ -169,50 +164,39 @@ export class AppComponent {
     // Check if the user is signed-in
     if (this.checkSignedInWithMessage()) {
       // We add a message with a loading icon that will get updated with the shared image.
-      const messages = this.db.list('/messages');
-      messages
-        .push({
-          name: this.currentUser.displayName,
-          imageUrl: LOADING_IMAGE_URL,
-          photoUrl: this.currentUser.photoURL || PROFILE_PLACEHOLDER_IMAGE_URL,
-        })
-        .then(data => {
-          // Upload the image to Cloud Storage.
-          const filePath = `${this.currentUser.uid}/${data.key}/${file.name}`;
-          return firebase
-            .storage()
-            .ref(filePath)
-            .put(file)
-            .then(snapshot => {
-              // Get the file's Storage URI and update the chat message placeholder.
-              const fullPath = snapshot.metadata.fullPath;
-              const imageUrl = firebase
-                .storage()
-                .ref(fullPath)
-                .toString();
-              return firebase
-                .storage()
-                .refFromURL(imageUrl)
-                .getMetadata();
-            })
-            .then(metadata => {
-              // TODO: Instead of saving the download URL, save the GCS URI and
-              //       dynamically load the download URL when displaying the image
-              //       message.
-              return data.update({
-                imageUrl: metadata.downloadURLs[0],
-              });
+      const messages: AngularFireList<{}> = this.db.list('/messages');
+      const data = await messages.push({
+        name: this.currentUser.displayName,
+        imageUrl: LOADING_IMAGE_URL,
+        photoUrl: this.currentUser.photoURL || PROFILE_PLACEHOLDER_IMAGE_URL,
+      });
+
+      // Upload the image to Cloud Storage.
+      const filePath = `${this.currentUser.uid}/${data.key}/${file.name}`;
+      const snapshot = await this.afStorage.ref(filePath).put(file);
+
+      // Get the file's Storage URI and update the chat message placeholder.
+      const fullPath = snapshot.metadata.fullPath;
+      const imageUrl = this.afStorage
+        .ref(fullPath)
+        .getDownloadURL()
+        .pipe(filter(Boolean))
+        .subscribe((url: string) => {
+          try {
+            this.db.object(`/messages/${data.key}`).update({
+              imageUrl: url,
             });
-        })
-        .then(console.log, err => {
-          this.snackBar.open(
-            'There was an error uploading a file to Cloud Storage.',
-            null,
-            {
-              duration: 5000,
-            }
-          );
-          console.error(err);
+          } catch (err) {
+            this.snackBar.open(
+              'There was an error uploading a file to Cloud Storage.',
+              null,
+              {
+                duration: 5000,
+              }
+            );
+            // tslint:disable-next-line:no-console
+            console.error(err);
+          }
         });
     }
   }
@@ -224,47 +208,40 @@ export class AppComponent {
   }
 
   // Saves the messaging device token to the datastore.
-  saveMessagingDeviceToken() {
-    return firebase
-      .messaging()
-      .getToken()
-      .then(currentToken => {
-        if (currentToken) {
-          console.log('Got FCM device token:', currentToken);
-          // Save the Device Token to the datastore.
-          firebase
-            .database()
-            .ref('/fcmTokens')
-            .child(currentToken)
-            .set(this.currentUser.uid);
-        } else {
-          // Need to request permissions to show notifications.
-          return this.requestNotificationsPermissions();
-        }
-      })
-      .catch(err => {
-        this.snackBar.open('Unable to get messaging token.', null, {
-          duration: 5000,
-        });
-        console.error(err);
-      });
+  async saveMessagingDeviceToken() {
+    try {
+      const currentToken = await firebase.messaging().getToken();
+
+      if (currentToken) {
+        // tslint:disable-next-line:no-console
+        console.log('Got FCM device token:', currentToken);
+        // Save the Device Token to the datastore.
+        firebase
+          .database()
+          .ref('/fcmTokens')
+          .child(currentToken)
+          .set(this.currentUser.uid);
+      } else {
+        // Need to request permissions to show notifications.
+        return this.requestNotificationsPermissions();
+      }
+    } catch (err) {
+      // tslint:disable-next-line:no-console
+      console.error(err);
+    }
   }
 
   // Requests permissions to show notifications.
-  requestNotificationsPermissions() {
+  async requestNotificationsPermissions() {
+    // tslint:disable-next-line:no-console
     console.log('Requesting notifications permission...');
-    return (
-      firebase
-        .messaging()
-        .requestPermission()
-        // Notification permission granted.
-        .then(() => this.saveMessagingDeviceToken())
-        .catch(err => {
-          this.snackBar.open('Unable to get permission to notify.', null, {
-            duration: 5000,
-          });
-          console.error(err);
-        })
-    );
+    try {
+      await firebase.messaging().requestPermission();
+      // Notification permission granted.
+      this.saveMessagingDeviceToken();
+    } catch (err) {
+      // tslint:disable-next-line:no-console
+      console.error(err);
+    }
   }
 }
