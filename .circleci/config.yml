@@ -14,7 +14,7 @@ jobs:
             - chat-{{ .Branch }}-{{ checksum "package.json" }}-v1
             - chat-{{ .Branch }}-v1
             - chat-v1
-      - run: yarn install --production=false
+      - run: npm i
       - save_cache:
           key: chat-{{ .Branch }}-{{ checksum "package.json" }}-v1
           paths:
