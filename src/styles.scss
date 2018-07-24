@@ -1,8 +1,16 @@
 /* You can add global styles to this file, and also import other style files */
+@font-face {
+  font-family: 'Roboto';
+  src: url('https://fonts.googleapis.com/css?family=Roboto:regular&amp;lang=en')
+    format('woff2');
+  font-display: swap;
+}
+
 html,
 body {
   font-family: 'Roboto', 'Helvetica', sans-serif;
 }
+
 .cdk-visually-hidden {
   display: none;
 }

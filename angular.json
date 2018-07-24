@@ -24,12 +24,12 @@
             "tsConfig": "src/tsconfig.app.json",
             "aot": true,
             "buildOptimizer": false,
-
             "assets": [
               "src/favicon.ico",
               "src/assets",
               "src/manifest.json",
-              "src/firebase-messaging-sw.js"
+              "src/firebase-messaging-sw.js",
+              "src/robots.txt"
             ],
             "styles": ["src/styles.scss"],
             "scripts": []
@@ -45,7 +45,7 @@
               "optimization": true,
               "outputHashing": "all",
               "sourceMap": false,
-              "extractCss": true,
+              "extractCss": false,
               "namedChunks": false,
               "extractLicenses": true,
               "vendorChunk": false,
@@ -95,7 +95,8 @@
               "src/favicon.ico",
               "src/assets",
               "src/manifest.json",
-              "src/firebase-messaging-sw.js"
+              "src/firebase-messaging-sw.js",
+              "src/robots.txt"
             ]
           }
         },
