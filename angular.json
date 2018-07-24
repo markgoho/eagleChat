@@ -22,6 +22,9 @@
             "main": "src/main.ts",
             "polyfills": "src/polyfills.ts",
             "tsConfig": "src/tsconfig.app.json",
+            "aot": true,
+            "buildOptimizer": false,
+
             "assets": [
               "src/favicon.ico",
               "src/assets",
@@ -44,12 +47,18 @@
               "sourceMap": false,
               "extractCss": true,
               "namedChunks": false,
-              "aot": true,
               "extractLicenses": true,
               "vendorChunk": false,
-              "buildOptimizer": false,
               "serviceWorker": true,
               "progress": false
+            },
+            "development": {
+              "optimization": false,
+              "outputHashing": "all",
+              "sourceMap": true,
+              "namedChunks": false,
+              "extractLicenses": true,
+              "vendorChunk": false
             }
           }
         },
@@ -61,6 +70,9 @@
           "configurations": {
             "production": {
               "browserTarget": "eagleChat:build:production"
+            },
+            "development": {
+              "browserTarget": "eagleChat:build:development"
             }
           }
         },
