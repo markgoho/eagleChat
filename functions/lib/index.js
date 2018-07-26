@@ -1,12 +1,4 @@
 "use strict";
-var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
-    return new (P || (P = Promise))(function (resolve, reject) {
-        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
-        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
-        step((generator = generator.apply(thisArg, _arguments || [])).next());
-    });
-};
 Object.defineProperty(exports, "__esModule", { value: true });
 const admin = require("firebase-admin");
 const functions = require("firebase-functions");
@@ -39,10 +31,10 @@ exports.addWelcomeMessages = functions.auth.user().onCreate(user => {
 });
 exports.blurOffensiveImages = functions.storage
     .object()
-    .onFinalize((object) => __awaiter(this, void 0, void 0, function* () {
+    .onFinalize(async (object) => {
     console.log('Running blurOffensiveImages');
     const messageId = object.name.split('/')[1];
-    const snapshot = yield admin
+    const snapshot = await admin
         .database()
         .ref(`/messages/${messageId}/moderated`)
         .once('value');
@@ -50,7 +42,7 @@ exports.blurOffensiveImages = functions.storage
         console.log('Image already moderated, exiting.');
         return null;
     }
-    const results = yield visionClient.safeSearchDetection(`gs://${object.bucket}/${object.name}`);
+    const results = await visionClient.safeSearchDetection(`gs://${object.bucket}/${object.name}`);
     const safeSearch = results[0];
     console.log('SafeSearch results on image', safeSearch);
     if (!results) {
@@ -66,29 +58,27 @@ exports.blurOffensiveImages = functions.storage
     else {
         console.log('The image', object.name, ' has been detected as OK.');
     }
-}));
-function blurImage(object) {
-    return __awaiter(this, void 0, void 0, function* () {
-        const filePath = object.name;
-        const bucket = storageClient.bucket(object.bucket);
-        const fileName = filePath.split('/').pop();
-        const tempLocalFile = `/tmp/${fileName}`;
-        const messageId = filePath.split('/')[1];
-        yield bucket.file(filePath).download({ destination: tempLocalFile });
-        console.log('Image has been downloaded to', tempLocalFile);
-        yield exec(`convert ${tempLocalFile} -channel RGBA -blur 0x24 ${tempLocalFile}`);
-        console.log('Image has been blurred');
-        yield bucket.upload(tempLocalFile, { destination: filePath });
-        console.log('Blurred image has been uploaded to', filePath);
-        return admin
-            .database()
-            .ref(`/messages/${messageId}`)
-            .update({ moderated: true });
-    });
+});
+async function blurImage(object) {
+    const filePath = object.name;
+    const bucket = storageClient.bucket(object.bucket);
+    const fileName = filePath.split('/').pop();
+    const tempLocalFile = `/tmp/${fileName}`;
+    const messageId = filePath.split('/')[1];
+    await bucket.file(filePath).download({ destination: tempLocalFile });
+    console.log('Image has been downloaded to', tempLocalFile);
+    await exec(`convert ${tempLocalFile} -channel RGBA -blur 0x24 ${tempLocalFile}`);
+    console.log('Image has been blurred');
+    await bucket.upload(tempLocalFile, { destination: filePath });
+    console.log('Blurred image has been uploaded to', filePath);
+    return admin
+        .database()
+        .ref(`/messages/${messageId}`)
+        .update({ moderated: true });
 }
 exports.sendNotifications = functions.database
     .ref('/messages/{messageId}')
-    .onWrite((change, context) => __awaiter(this, void 0, void 0, function* () {
+    .onWrite(async (change, context) => {
     if (change.before.val()) {
         return null;
     }
@@ -105,7 +95,7 @@ exports.sendNotifications = functions.database
             icon: original.photoUrl || '/assets/images/profile_placeholder.png',
         },
     };
-    const allTokens = yield admin
+    const allTokens = await admin
         .database()
         .ref('fcmTokens')
         .once('value');
@@ -113,7 +103,7 @@ exports.sendNotifications = functions.database
         // Listing all tokens.
         const tokens = Object.keys(allTokens.val());
         // Send notifications to all tokens.
-        const response = yield admin.messaging().sendToDevice(tokens, payload);
+        const response = await admin.messaging().sendToDevice(tokens, payload);
         // For each message check if there was an error.
         const tokensToRemove = [];
         response.results.forEach((result, index) => {
@@ -129,5 +119,5 @@ exports.sendNotifications = functions.database
             return Promise.all(tokensToRemove);
         });
     }
-}));
+});
 //# sourceMappingURL=index.js.map
